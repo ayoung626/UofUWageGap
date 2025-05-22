@@ -2,8 +2,11 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 from urllib.error import URLError
 from matplotlib.ticker import FuncFormatter
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.ensemble import RandomForestClassifier
 
 # Set page config and title
 st.set_page_config(
@@ -44,9 +47,9 @@ try:
         # Display the chart
         st.pyplot(fig, use_container_width=True)
         st.markdown("""
-        This chart shows the distribution of compensation for all employees at the University of Utah.
-        Note the higher density of female compensation at the lower end of the distribution.
-        """)
+        <h4>This chart shows the distribution of compensation for all employees at the University of Utah.
+        Note the higher density of female compensation at the lower end of the distribution.</h4>
+        """, unsafe_allow_html=True)
     
     fig, ax = plt.subplots(figsize=(10, 6))
     dfuap = dfu[dfu['TITLE'] == 'ASSOCIATE PROFESSOR']
@@ -63,9 +66,51 @@ try:
         # Display the chart
         st.pyplot(fig, use_container_width=True)
         st.markdown("""
-        This chart shows the distribution of compensation for associate professors at the University of Utah.
-        This time, with the title of the employee controlled, the result is similar, making it more likely that gender plays a role in compensation.
-        """)
+        <h4>This chart shows the distribution of compensation for associate professors at the University of Utah.
+        This time, with the title of the employee controlled, the result is similar, making it more likely that gender plays a role in compensation.</h4>
+        """, unsafe_allow_html=True)
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    dfuapc = dfu[dfu['TITLE'] == 'ASSISTANT PROFESSOR (CLINICAL)']
+    sns.kdeplot(data=dfuapc,x='amount', hue='GENDER', common_norm=False)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{int(x/1000):,}'))
+    plt.title('Assistant Professor (Clinical) Compensation (KDE)')
+    plt.ylabel('Density')
+    plt.xlabel('Compensation (Thousands)')
+    plt.legend(['Male','Female'])
+
+    with st.container():
+        st.subheader("Assistant Professor (Clinical) Compensation")
         
+        # Display the chart
+        st.pyplot(fig, use_container_width=True)
+        st.markdown("""
+        <h4>This chart shows the distribution of compensation for assistant professors (clinical) at the University of Utah.
+        There are two clear peaks in the distribution, but the female peaks are higher on the lower end of the distribution.</h4>
+        """, unsafe_allow_html=True)
+
+    dfu_train = dfu[['TITLE','org1','amount','GENDER']]
+    y=dfu_train.pop('GENDER')
+    dfu_train_encoded = pd.get_dummies(dfu_train, drop_first=True)
+    scaler = MinMaxScaler()
+    dfu_train_encoded['amount'] = scaler.fit_transform(dfu_train_encoded[['amount']])
+    rf_model = RandomForestClassifier(n_estimators=100)
+    rf_model.fit(dfu_train_encoded, y)
+    feature_importance_df = pd.DataFrame(zip(dfu_train_encoded.columns, np.transpose(rf_model.feature_importances_)), 
+                                       columns=['features', 'importance']).sort_values('importance', ascending=False)
+    
+    with st.container():
+        st.subheader("Feature Importance Analysis")
+        st.markdown("""
+        <h4>This table shows the relative importance of different features in predicting gender-based compensation patterns.
+        Higher importance values indicate features that have a stronger influence on the model's predictions.</h4>
+        """, unsafe_allow_html=True)
+        
+        # Display the feature importance table with formatting
+        st.dataframe(
+            feature_importance_df.style.format({'importance': '{:.4f}'}),
+            use_container_width=True
+        )
+    
 except URLError as e:
     st.error(f"⚠️ This demo requires internet access. Connection error: {e.reason}")
