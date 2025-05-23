@@ -7,6 +7,7 @@ from urllib.error import URLError
 from matplotlib.ticker import FuncFormatter
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier
+import statsmodels.api as sm
 
 # Set page config and title
 st.set_page_config(
@@ -111,6 +112,23 @@ try:
             feature_importance_df.style.format({'importance': '{:.4f}'}),
             use_container_width=True
         )
+
+    scaler = MinMaxScaler()
+    dfu_train_encoded = pd.get_dummies(dfu_train.drop('TITLE',axis = 1), drop_first=True)
+    dfu_scaled = dfu_train_encoded.astype(int)
+    dfu_scaled['amount'] = scaler.fit_transform(dfu_scaled[['amount']])
+    X2 = sm.add_constant(dfu_scaled)
+    est = sm.Logit(y, X2)
+    est2 = est.fit()
+    with st.container():
+        st.subheader("Logistic Regression Model")
+        st.write(est2.summary())
+        st.markdown("""
+        <h4>This table shows the results of the logistic regression model.
+        When the 15.0342 coefficient for amount is unscaled, we get 0.000004, meaning that a one dollar increase in compensation increases the odds of the person
+        being male by 0.0004%. This doesn't seem that large, but when there is a 10,000 dollar increase,
+        odds for being male go up by 4%.</h4>
+        """, unsafe_allow_html=True)
     
 except URLError as e:
     st.error(f"⚠️ This demo requires internet access. Connection error: {e.reason}")
