@@ -130,5 +130,25 @@ try:
         odds for being male go up by 4%.</h4>
         """, unsafe_allow_html=True)
     
+
+    dfu_train = dfu[['TITLE','org1','amount','GENDER']]
+    y=dfu_train.pop('amount')
+    dfu_train_encoded = pd.get_dummies(dfu_train, drop_first=True)
+    y_alt = y.apply(lambda x: int(x/10000))
+    rf_model = RandomForestClassifier(n_estimators=100)
+    rf_model.fit(dfu_train_encoded, y_alt)
+    feature_importance_df = pd.DataFrame(zip(dfu_train_encoded.columns, np.transpose(rf_model.feature_importances_)), columns=['features', 'importance']).sort_values('importance', ascending=False)
+    with st.container():
+        st.subheader("Feature Importance Analysis")
+        st.markdown("""
+        <h4>Like the previous analysis, this table shows the relative importance of different features in predicting gender-based compensation patterns.
+        However, this time, we test the gender and other features to see if they are important in predicting the amount of compensation.</h4>
+        """, unsafe_allow_html=True)
+        st.dataframe(
+            feature_importance_df.style.format({'importance': '{:.4f}'}),
+            use_container_width=True
+        )
+        
+
 except URLError as e:
     st.error(f"⚠️ This demo requires internet access. Connection error: {e.reason}")
